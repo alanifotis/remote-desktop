@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+option csharp_namespace = "RemoteDesktopServer";
+
+package Input;
+
+service InputService {
+  rpc SendMouseMove(MouseMoveEvent) returns (EmptyResponse);
+  rpc SendMouseDown(MouseButtonEvent) returns (EmptyResponse);
+  rpc SendMouseUp(MouseButtonEvent) returns (EmptyResponse);
+  rpc SendMouseWheel(MouseWheelEvent) returns (EmptyResponse);
+  rpc SendKeyDown(KeyEvent) returns (EmptyResponse);
+  rpc SendKeyUp(KeyEvent) returns (EmptyResponse);
+}
+
+// Represents normalized coordinates from 0.0 to 1.0
+message MouseMoveEvent {
+  double x = 1;
+  double y = 2;
+}
+
+message MouseButtonEvent {
+  // 0=Left, 1=Middle, 2=Right
+  int32 button = 1;
+}
+
+message MouseWheelEvent {
+  // Positive value for scroll up, negative for scroll down
+  int32 delta_y = 1;
+}
+
+// Using JavaScript key codes
+message KeyEvent {
+  string key = 1;
+}
+
+message EmptyResponse {}

@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "module": "ESNext",
+    "target": "ESNext",
+    "outDir": "./wwwroot"
+  },
+  "include": [
+    "./typescript/*.ts"
+  ]
+}

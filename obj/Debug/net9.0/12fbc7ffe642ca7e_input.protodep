@@ -1,0 +1,2 @@
+obj\Debug\net9.0\Protos/Input.cs \
+obj\Debug\net9.0\Protos/InputGrpc.cs: Protos/input.proto
