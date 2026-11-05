@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>WebRTC Client</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            flex-direction: column;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            width: 90%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #0d6efd;
+            border-bottom: 2px solid #f0f2f5;
+            padding-bottom: 10px;
+            margin-top: 0;
+            text-align: center;
+        }
+        video {
+            width: 100%;
+            max-height: 450px;
+            border-radius: 8px;
+            background-color: #000;
+            border: 1px solid #ddd;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            background-color: #0d6efd;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0b5ed7;
+        }
+        button.danger {
+            background-color: #dc3545;
+        }
+        button.danger:hover {
+            background-color: #bb2d3b;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        /* --- NEW ON-SCREEN CONSOLE STYLES --- */
+        #log-container {
+            width: 90%;
+            max-width: 600px;
+            height: 200px;
+            background-color: #2b2b2b;
+            color: #f1f1f1;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            border-radius: 8px;
+            overflow-y: scroll;
+            padding: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid #444;
+            /* New property to make scrolling smooth */
+            scroll-behavior: smooth;
+        }
+        .log-entry {
+            margin: 0;
+            padding: 2px 0;
+            border-bottom: 1px solid #444;
+            word-break: break-all;
+        }
+        .log-entry.log { color: #f1f1f1; }
+        .log-entry.warn { color: #ffc107; }
+        .log-entry.error { color: #f44336; font-weight: bold; }
+        /* --- END OF NEW STYLES --- */
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>WebRTC Receiver</h1>
+    <video id="videoCtl" autoplay playsinline muted controls></video>
+
+    <div class="button-group">
+        <button onclick="start()">Start Connection</button>
+        <button class="danger" onclick="closePeer()">Stop Connection</button>
+    </div>
+</div>
+
+<div id="log-container"></div>
+
+<script type="text/javascript">
+
+
+
+    // ======================================================
+
+    // --- NEW ON-SCREEN CONSOLE SCRIPT ---
+
+    // ======================================================
+
+
+
+    const logContainer = document.getElementById('log-container');
+
+
+
+    /**
+
+     * Appends a message to the on-screen console.
+
+     * @param {string} message The message to log.
+
+     * @param {'log' | 'warn' | 'error'} level The log level.
+
+     */
+
+    function logToScreen(message, level = 'log') {
+
+        if (!logContainer) return;
+
+
+
+// Format the message
+
+        const timestamp = new Date().toLocaleTimeString();
+
+        const logEntry = document.createElement('p');
+
+        logEntry.className = `log-entry ${level}`;
+
+        logEntry.textContent = `[${timestamp}] ${message}`;
+
+
+
+// Append and scroll to bottom
+
+        logContainer.appendChild(logEntry);
+
+        logContainer.scrollTop = logContainer.scrollHeight;
+
+    }
+
+
+
+    // --- Store original console functions ---
+
+    const originalConsole = {
+
+        log: console.log,
+
+        warn: console.warn,
+
+        error: console.error,
+
+        debug: console.debug
+
+    };
+
+
+
+    // --- Override console functions ---
+
+    console.log = function() {
+
+        const message = Array.from(arguments).map(String).join(' ');
+
+        logToScreen(message, 'log');
+
+        originalConsole.log.apply(console, arguments);
+
+    };
+
+
+
+    console.warn = function() {
+
+        const message = Array.from(arguments).map(String).join(' ');
+
+        logToScreen(message, 'warn');
+
+        originalConsole.warn.apply(console, arguments);
+
+    };
+
+
+
+    console.error = function() {
+
+        const message = Array.from(arguments).map(String).join(' ');
+
+        logToScreen(message, 'error');
+
+        originalConsole.error.apply(console, arguments);
+
+    };
+
+
+
+    console.debug = function() {
+
+// We'll treat debug as a normal log for the screen
+
+        const message = Array.from(arguments).map(String).join(' ');
+
+        logToScreen(message, 'log');
+
+        originalConsole.debug.apply(console, arguments);
+
+    };
+
+
+
+    // Log uncaught exceptions
+
+    window.onerror = function(message, source, lineno, colno, error) {
+
+        console.error(`Uncaught Error: ${message} at ${source}:${lineno}:${colno}`);
+
+        return true;
+
+    };
+
+
+
+    // ======================================================
+
+    // --- YOUR WEBRTC SCRIPT (Now logs to screen) ---
+
+    // ======================================================
+
+
+
+    // Use the same protocol (ws/wss) as the page
+
+    const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+
+    // Use the same hostname (IP or domain) as the page
+
+    const wsHostname = window.location.hostname;
+
+    // Specify the port.
+
+    const wsPort = "8081"; // Your server's WebSocket port
+
+
+
+    const receiveOfferUrl = `${wsProtocol}${wsHostname}:${wsPort}/`;
+
+
+
+    let pc;
+
+    let ws;
+
+
+
+    async function start() {
+
+// All console.log calls from here on will go to the screen
+
+        console.log(`Connecting to ${receiveOfferUrl}`);
+
+        closePeer(); // Close any existing connections
+
+
+
+        let videoControl = document.querySelector('#videoCtl');
+
+
+
+        try {
+
+            ws = new WebSocket(receiveOfferUrl, []);
+
+        } catch (err) {
+
+// This will now be red on the on-screen console
+
+            console.error("Failed to create WebSocket:", err);
+
+            return;
+
+        }
+
+
+
+        ws.onopen = async function () {
+
+            console.log("WebSocket connected.");
+
+            try {
+
+
+
+                const rtcConfig = {
+
+                    iceServers: [
+
+                        { urls: 'stun:stun.l.google.com:19302' }
+
+                    ]
+
+                };
+
+
+
+                pc = new RTCPeerConnection(rtcConfig);
+
+
+
+                pc.ontrack = ({ track, streams: [stream] }) => {
+
+                    track.onunmute = () => {
+
+                        console.log("Adding track to video control.");
+
+                        videoControl.srcObject = stream;
+
+                    };
+
+                };
+
+
+
+                pc.onicecandidate = function (event) {
+
+                    if (event.candidate) {
+
+
+
+                        if (event.candidate.candidate.includes('.local')) {
+
+                            console.warn("Skipping mDNS/local-IP-hiding candidate:", event.candidate.candidate);
+
+                            return;
+
+                        }
+
+
+
+                        console.log("Sending ICE candidate:", event.candidate.candidate);
+
+                        ws.send(JSON.stringify(event.candidate.toJSON()));
+
+                    } else {
+
+                        console.log("End of ICE candidates.");
+
+                    }
+
+                };
+
+
+
+                pc.onicegatheringstatechange = () => console.log("ICE gathering state:", pc.iceGatheringState);
+
+                pc.oniceconnectionstatechange = () => console.log("ICE connection state:", pc.iceConnectionState);
+
+
+
+            } catch (err) {
+
+                console.error("Error during WebRTC setup:", err);
+
+            }
+
+        };
+
+
+
+        ws.onmessage = async function (evt) {
+
+            try {
+
+                let data = evt.data;
+
+
+
+// Updated logic to handle JSON from your server
+
+                if (data.startsWith("{")) {
+
+// It's an ICE candidate (as JSON)
+
+                    const candidate = JSON.parse(data);
+
+
+
+                    if (candidate.candidate && candidate.candidate.includes('.local')) {
+
+                        console.warn("Skipping mDNS candidate from server:", candidate.candidate);
+
+                        return;
+
+                    }
+
+
+
+                    console.log("Received ICE candidate:", candidate.candidate || "null");
+
+                    await pc.addIceCandidate(candidate);
+
+
+
+                } else if (data.includes("v=0")) {
+
+// It's an SDP offer
+
+                    console.log("Received SDP offer.");
+
+                    await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data }));
+
+
+
+                    const answer = await pc.createAnswer();
+
+                    await pc.setLocalDescription(answer);
+
+
+
+                    console.log("Sending SDP answer.");
+
+                    ws.send(pc.localDescription.sdp);
+
+
+
+                } else {
+
+                    console.warn("Unknown message received:", data);
+
+                }
+
+            } catch (err) {
+
+                console.error("Failed to handle message:", err, "Data:", evt.data);
+
+            }
+
+        };
+
+
+
+        ws.onclose = function (event) {
+
+// This will now appear in the on-screen console
+
+            console.warn(`WebSocket closed: ${event.reason || 'No reason specified'} (Code: ${event.code})`);
+
+            if (event.code === 1006 && wsProtocol === "wss://") {
+
+                showCertError(); // This function now just logs
+
+            }
+
+        };
+
+
+
+        ws.onerror = function (err) {
+
+// This will now appear in the on-screen console
+
+            console.error("WebSocket error. See browser console for details.");
+
+// The browser console will have more info, but this flags the error.
+
+            if (wsProtocol === "wss://") {
+
+                showCertError();
+
+            }
+
+        };
+
+    }
+
+
+
+    function closePeer() {
+
+        if (ws) {
+
+            console.log("Closing WebSocket.");
+
+            ws.onclose = null;
+
+            ws.close();
+
+            ws = null;
+
+        }
+
+        if (pc) {
+
+            console.log("Closing PeerConnection.");
+
+            pc.close();
+
+            pc = null;
+
+        }
+
+    }
+
+
+
+    /**
+
+     * This function now just logs the cert error to our new console.
+
+     */
+
+    function showCertError() {
+
+        console.error("--- CERTIFICATE ERROR ---");
+
+        console.error("Secure connection (wss://) failed. This is likely because the device does not trust the server's self-signed certificate.");
+
+        console.error(`Please go to https://${wsHostname}:${window.location.port}/cert to download the CA certificate.`);
+
+        console.error("You must then manually install it in your device's 'Trusted Root' store and restart the browser.");
+
+        console.error("--------------------------");
+
+    }
+
+
+
+</script></body>
+</html>

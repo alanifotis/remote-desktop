@@ -1,18 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Remote Desktop</title>
-    <link rel="stylesheet" href="style.css">
+    <title>WebRTC Client</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        /* Force full-screen, no scroll, no margin */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* This container holds both the video and the overlay.
+         It will be our main "input grabber" area.
+        */
+        #video-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* The video will fill the container, but maintain its aspect ratio */
+        #videoCtl {
+            width: 100%;
+            height: 100%;
+            /* 'contain' shows the whole 16:9 stream with black bars (letterboxing) */
+            /* 'cover' would fill the screen but crop the sides/top */
+            object-fit: contain;
+            background-color: #000;
+        }
+
+        /* The overlay holds the start button.
+         It sits on top of the video container.
+        */
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #startButton {
+            padding: 18px 32px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            background-color: #0d6efd;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        #startButton:hover {
+            background-color: #0b5ed7;
+        }
+        #startButton:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        /* The log container now sits on top of everything, at the bottom */
+        #log-container {
+            position: fixed; /* Fixed position */
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 150px; /* Shorter */
+            background-color: rgba(43, 43, 43, 0.8); /* Semi-transparent */
+            color: #f1f1f1;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            overflow-y: scroll;
+            padding: 10px;
+            box-sizing: border-box; /* Include padding in width/height */
+            z-index: 20; /* On top of overlay and video */
+            scroll-behavior: smooth;
+        }
+        .log-entry {
+            margin: 0;
+            padding: 2px 0;
+            border-bottom: 1px solid #444;
+            word-break: break-all;
+        }
+        .log-entry.log { color: #f1f1f1; }
+        .log-entry.warn { color: #ffc107; }
+        .log-entry.error { color: #f44336; font-weight: bold; }
+    </style>
 </head>
 <body>
-<div id="overlay">
-    <h2>Remote Desktop</h2>
-    <button id="startButton">Start Streaming</button>
+
+<div id="video-container">
+    <video id="videoCtl" autoplay playsinline muted controls></video>
+
+    <div id="overlay">
+        <button id="startButton">Start Connection</button>
+    </div>
 </div>
 
-<video id="remoteVideo" playsinline muted></video>
+<div id="log-container"></div>
 
 <script type="module" src="bundle.js"></script>
+
 </body>
 </html>
